@@ -4,4 +4,5 @@
 
 #pragma once
 
-int str_extract(char *dst, char *src, const char *prefix, const char *postfix);
+int str_extract(char *dest, const char *src,
+		const char *prefix, const char *postfix);

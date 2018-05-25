@@ -51,8 +51,12 @@ Written in C with libcurl
 
 **例子**
 
+将以下内容写到一个脚本文件内，保存到与EsDialer二进制文件同级目录下。
+
+UNIX:
+
 ```
-#!/bin/bash
+#!/bin/sh
 export ESD_USERID=foo
 export ESD_PASSWD=bar
 
@@ -67,6 +71,25 @@ export ESD_CHECK_INTERVAL=10
 export ESD_DEBUG=1
 # 运行
 ./EsDialer
+```
+
+Windows
+
+```
+set ESD_USERID=foo
+set ESD_PASSWD=bar
+
+# 留空示例（但不能不写）
+set ESD_CDC_DOMAIN=''
+set ESD_CDC_AREA=''
+set ESD_CDC_SCHOOLID=''
+
+set ESD_RETRY_COUNT=0
+set ESD_RETRY_COUNT=-1
+set ESD_CHECK_INTERVAL=10
+set ESD_DEBUG=1
+
+.\EsDialer
 ```
 
 ## 编译方法

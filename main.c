@@ -37,7 +37,7 @@ void sig_handler(int sig) {
 }
 
 int main(int argc, char *argv[]) {
-    printf("** EsDialerCD by ChiL.\n");
+    printf("** EsDialerGD by ChiL.\n");
     printf("** Build date: 2018-05-24\n");
     printf("** Project: https://github.com/claw6148/EsDialerGD\n\n");
 

@@ -8,24 +8,20 @@
  */
 
 #include <string.h>
-#include <stdlib.h>
 
-int str_extract(char *dst, char *src, const char *prefix, const char *postfix) {
-    char *ptr_pre = NULL;
-    char *ptr_post = NULL;
-    char *target = NULL;
-    int result = 0;
-    if (!(ptr_pre = strstr(src, prefix))) goto _fail;
-    if (!(target = strdup(ptr_pre + strlen(prefix)))) goto _fail;
-    if (!(ptr_post = strstr(target, postfix))) goto _fail;
-    *(ptr_post) = '\0';
-    strcpy(dst, target);
+int str_extract(char *dest, const char *src,
+                const char *prefix, const char *postfix)
+{
+	char *start, *end;
+	*dest = '\0';
+	
+	if (!(start = strstr(src, prefix)) ||
+	    !(end = strstr(start += strlen(prefix), postfix)))
+		return -1;
 
-    _leave:
-    if (target) free(target);
-    return result;
+	while (start != end)
+		*dest++ = *start++;
+	*dest = '\0';
 
-    _fail:
-    result = -1;
-    goto _leave;
+	return 0;
 }

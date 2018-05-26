@@ -17,11 +17,11 @@ int str_extract(char *dest, const char *src,
 	
 	if (!(start = strstr(src, prefix)) ||
 	    !(end = strstr(start += strlen(prefix), postfix)))
-		return 0;
+		return -1;
 
 	while (start != end)
 		*dest++ = *start++;
 	*dest = '\0';
 
-	return -1;
+	return 0;
 }

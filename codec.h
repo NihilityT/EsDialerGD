@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#define u_char unsigned char
+typedef unsigned char u_char;
 
 void payload_encode(char *data, char *md5_hex, const u_char *buf);
 void payload_decode(u_char *data, const u_char *buf, size_t buf_len);

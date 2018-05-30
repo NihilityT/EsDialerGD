@@ -190,13 +190,16 @@ void update_local_time(AUTH_CONTEXT *ctx) {
 }
 
 int get_basic_info(AUTH_CONTEXT *ctx, const char *url, char *redir_url) {
+    if (ctx->ticket_url[0] && ctx->auth_url[0] && ctx->ipv4_addr[0]) goto _succ;
     char buf[4096] = {0};
     char headers[][HEADER_LEN] = {{0}};
     if (http_req_send(url, headers, NULL, buf)) goto _fail;
     if (str_extract(redir_url, buf, ">location.href=\"", "\"")) goto _fail;
+    if (ctx->ipv4_addr[0]) goto _succ;
     if (str_extract(ctx->ipv4_addr, buf, "wlanuserip=", "\"")) {
         if (str_extract(ctx->ipv4_addr, buf, "wlanuserip=", "&")) goto _fail;
     }
+    _succ:
     return 0;
     _fail:
     dbgout(FAILED_STR);
@@ -205,14 +208,18 @@ int get_basic_info(AUTH_CONTEXT *ctx, const char *url, char *redir_url) {
 
 int get_config(AUTH_CONTEXT *ctx,
                const char *url) {
+    if (ctx->ticket_url[0] && ctx->auth_url[0]) goto _succ;
     char buf[4096] = {0};
     char headers[][HEADER_LEN] = {{0},
                                   {0}};
     snprintf(headers[0], HEADER_LEN, "User-Agent: %s", ctx->user_agent);
     if (http_req_send(url, headers, NULL, buf)) goto _fail;
-    if (str_extract(ctx->ticket_url, buf, "<ticket-url><![CDATA[", "]]></ticket-url>")) goto _fail;
-    if (str_extract(ctx->auth_url, buf, "<auth-url><![CDATA[", "]]></auth-url>")) goto _fail;
+    if (!ctx->ticket_url[0])
+        if (str_extract(ctx->ticket_url, buf, "<ticket-url><![CDATA[", "]]></ticket-url>")) goto _fail;
+    if (!ctx->auth_url[0])
+        if (str_extract(ctx->auth_url, buf, "<auth-url><![CDATA[", "]]></auth-url>")) goto _fail;
 
+    _succ:
     return 0;
     _fail:
     dbgout(FAILED_STR);
@@ -244,10 +251,15 @@ int send_auth(AUTH_CONTEXT *ctx, const char *userid, const char *passwd) {
     char headers[8][HEADER_LEN];
     build_headers(ctx, headers, md5_hex);
     if (http_req_send(ctx->auth_url, headers, data, data)) goto _fail;
+    if (ctx->keep_url[0] && ctx->term_url[0]) goto _succ;
     u_char data_plain[sizeof(data) >> 1] = {0};
     payload_decode((u_char *) data_plain, (const u_char *) data, strlen(data));
-    if (str_extract(ctx->keep_url, (char *) data_plain, "<keep-url><![CDATA[", "]]></keep-url>")) goto _fail;
-    if (str_extract(ctx->term_url, (char *) data_plain, "<term-url><![CDATA[", "]]></term-url>")) goto _fail;
+    if (!ctx->keep_url[0])
+        if (str_extract(ctx->keep_url, (char *) data_plain, "<keep-url><![CDATA[", "]]></keep-url>")) goto _fail;
+    if (!ctx->term_url[0])
+        if (str_extract(ctx->term_url, (char *) data_plain, "<term-url><![CDATA[", "]]></term-url>")) goto _fail;
+
+    _succ:
     return 0;
     _fail:
     dbgout(FAILED_STR);
@@ -300,7 +312,8 @@ int auth_init(AUTH_CONTEXT *ctx,
               const char *ostag,
               const char *host_name,
               const char *user_agent,
-              const char *algo_id
+              const char *algo_id,
+              const char *client_id
 ) {
     char redir_url[256] = {0};
     char *site_list[] = {
@@ -314,13 +327,13 @@ int auth_init(AUTH_CONTEXT *ctx,
         if (!get_basic_info(ctx, site_list[i], redir_url)) break;
     }
     if (site_list[i][0] == 0) goto _fail;
-    if (!(cdc_domain && cdc_area && cdc_schoolid && ostag && host_name && user_agent && algo_id)) return 0;
+    if (!(ostag && host_name && user_agent && algo_id && client_id)) return 0;
 
     update_local_time(ctx);
 
     u_char md5_bin[HASHSIZE];
     md5(ctx->local_time, strlen(ctx->local_time), (char *) md5_bin);
-    strcpy(ctx->client_id, "2B2B2B2B-2B2B-2B2B-2B2B-2B2B2B2B2B2B"); //客户端ID不能随机生成，否则有几率发生ticket接口调用失败。
+    strcpy(ctx->client_id, client_id);
 
     //随机MAC
     snprintf(ctx->mac_addr, 32, "%02X:%02X:%02X:%02X:%02X:%02X",
@@ -331,10 +344,9 @@ int auth_init(AUTH_CONTEXT *ctx,
              (*((uint8_t *) (md5_bin + 4))),
              (*((uint8_t *) (md5_bin + 5))));
 
-    strcpy(ctx->cdc_domain, cdc_domain);
-    strcpy(ctx->cdc_area, cdc_area);
-    strcpy(ctx->cdc_schoolid, cdc_schoolid);
-    strcpy(ctx->cdc_schoolid, cdc_schoolid);
+    if (cdc_domain) strcpy(ctx->cdc_domain, cdc_domain);
+    if (cdc_area) strcpy(ctx->cdc_area, cdc_area);
+    if (cdc_schoolid) strcpy(ctx->cdc_schoolid, cdc_schoolid);
     strcpy(ctx->ostag, ostag);
     strcpy(ctx->host_name, host_name);
     strcpy(ctx->user_agent, user_agent);
@@ -342,12 +354,25 @@ int auth_init(AUTH_CONTEXT *ctx,
 
     if (get_config(ctx, redir_url)) goto _fail;
 
-
     return 0;
 
     _fail:
     dbgout(FAILED_STR);
     return -1;
+}
+
+void auth_manual_set_config(AUTH_CONTEXT *ctx,
+                            const char *ticket_url,
+                            const char *auth_url,
+                            const char *keep_url,
+                            const char *term_url,
+                            const char *ipv4_addr
+) {
+    if (ticket_url) strcpy(ctx->ticket_url, ticket_url);
+    if (auth_url) strcpy(ctx->auth_url, auth_url);
+    if (keep_url) strcpy(ctx->keep_url, keep_url);
+    if (term_url) strcpy(ctx->term_url, term_url);
+    if (ipv4_addr) strcpy(ctx->ipv4_addr, ipv4_addr);
 }
 
 int auth_login(AUTH_CONTEXT *ctx, const char *userid, const char *passwd) {

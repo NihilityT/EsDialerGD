@@ -64,19 +64,19 @@ UNIX（对应``wrapper-unix.sh``）
 ```
 #!/bin/sh
 
-export ESD_USERID = foo
-export ESD_PASSWD = bar
+export ESD_USERID=foo
+export ESD_PASSWD=bar
 
-# export ESD_RETRY_COUNT = -1
-# export ESD_RETRY_DELAY = 20
-# export ESD_CHECK_INTERVAL = 10
-# export ESD_DEBUG = 1
+# export ESD_RETRY_COUNT=-1
+# export ESD_RETRY_DELAY=20
+# export ESD_CHECK_INTERVAL=10
+# export ESD_DEBUG=1
 
-# export ESD_TICKET_URL = http://XXX/ticket.cgi
-# export ESD_AUTH_URL = http://XXX/auth.cgi
-# export ESD_KEEP_URL = http://XXX/keep.cgi
-# export ESD_TERM_URL = http://XXX/term.cgi
-# export ESD_IPV4_ADDR = AAA.BBB.CCC.DDD
+# export ESD_TICKET_URL=http://XXX/ticket.cgi
+# export ESD_AUTH_URL=http://XXX/auth.cgi
+# export ESD_KEEP_URL=http://XXX/keep.cgi
+# export ESD_TERM_URL=http://XXX/term.cgi
+# export ESD_IPV4_ADDR=AAA.BBB.CCC.DDD
 
 # 运行
 ./EsDialer
@@ -87,19 +87,19 @@ Windows（对应``wrapper-win.bat``）
 ```
 @echo off
 
-set ESD_USERID = foo
-set ESD_PASSWD = bar
+set ESD_USERID=foo
+set ESD_PASSWD=bar
 
-REM set ESD_RETRY_COUNT = -1
-REM set ESD_RETRY_DELAY = 20
-REM set ESD_CHECK_INTERVAL = 10
-REM set ESD_DEBUG = 1
+REM set ESD_RETRY_COUNT=-1
+REM set ESD_RETRY_DELAY=20
+REM set ESD_CHECK_INTERVAL=10
+REM set ESD_DEBUG=1
 
-REM set ESD_TICKET_URL = http://XXX/ticket.cgi
-REM set ESD_AUTH_URL = http://XXX/auth.cgi
-REM set ESD_KEEP_URL = http://XXX/keep.cgi
-REM set ESD_TERM_URL = http://XXX/term.cgi
-REM set ESD_IPV4_ADDR = AAA.BBB.CCC.DDD
+REM set ESD_TICKET_URL=http://XXX/ticket.cgi
+REM set ESD_AUTH_URL=http://XXX/auth.cgi
+REM set ESD_KEEP_URL=http://XXX/keep.cgi
+REM set ESD_TERM_URL=http://XXX/term.cgi
+REM set ESD_IPV4_ADDR=AAA.BBB.CCC.DDD
 
 REM 运行
 .\EsDialer

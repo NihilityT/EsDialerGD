@@ -15,7 +15,7 @@ str_extract.o : str_extract.c str_extract.h
 	$(CROSS)$(CC) -std=c99 -c str_extract.c
 
 http_req.o : http_req.c http_req.h
-	$(CROSS)$(CC) -std=c99 -c http_req.c
+	$(CROSS)$(CC) $(LDFLAGS) -std=c99 -c http_req.c
 
 codec.o : codec.c codec.h md5.h
 	$(CROSS)$(CC) -std=c99 -c codec.c

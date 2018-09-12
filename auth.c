@@ -54,7 +54,7 @@ void build_ticket_payload(
 ) {
     u_char buf[1024] = {0};
     snprintf(buf,
-             1024,
+             sizeof(buf),
              "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
              "<request>"
              "<host-name>%s</host-name>"
@@ -86,7 +86,7 @@ void build_auth_payload(
 ) {
     u_char buf[1024] = {0};
     snprintf(buf,
-             1024,
+             sizeof(buf),
              "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
              "<request>"
              "<passwd>%s</passwd>"
@@ -115,7 +115,7 @@ void build_keep_payload(
 ) {
     u_char buf[1024] = {0};
     snprintf(buf,
-             1024,
+             sizeof(buf),
              "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
              "<request>"
              "<user-agent>%s</user-agent>"
@@ -141,7 +141,7 @@ void build_term_payload(
 ) {
     u_char buf[1024] = {0};
     snprintf(buf,
-             1024,
+             sizeof(buf),
              "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
              "<request>"
              "<user-agent>%s</user-agent>"
@@ -191,15 +191,24 @@ void update_local_time(AUTH_CONTEXT *ctx) {
 
 int get_basic_info(AUTH_CONTEXT *ctx, const char *url, char *redir_url) {
     if (ctx->ticket_url[0] && ctx->auth_url[0] && ctx->ipv4_addr[0]) goto _succ;
-    char buf[4096] = {0};
+    char buf[UD_BUF_SIZE] = {0};
     char headers[][HEADER_LEN] = {{0}};
-    if (http_req_send(url, headers, NULL, buf)) goto _fail;
-    if (str_extract(redir_url, buf, ">location.href=\"", "\"")) goto _fail;
+    dbgout("url=%s", url);
+    if (http_req_send(url, headers, NULL, buf, sizeof(buf), 1)) goto _fail;
+    int is_loc_redir = 0;
+    if (str_extract(redir_url, buf, "\r\nLocation: ", "\n")) {
+        if (str_extract(redir_url, buf, "location.href=\"", "\"")) goto _fail;
+    } else is_loc_redir = 1;
     if (ctx->ipv4_addr[0]) goto _succ;
-    if (str_extract(ctx->ipv4_addr, buf, "wlanuserip=", "\"")) {
-        if (str_extract(ctx->ipv4_addr, buf, "wlanuserip=", "&")) goto _fail;
+    if (str_extract(ctx->ipv4_addr, redir_url, "wlanuserip=", "&")) {
+        if (is_loc_redir && str_extract(ctx->ipv4_addr, redir_url, "wlanuserip=", "\r")) goto _fail;
+        else
+            strcpy(ctx->ipv4_addr, strstr(redir_url, "wlanuserip=") + 11);
     }
+    if (is_loc_redir) redir_url[strlen(redir_url) - 1] = '\0';
     _succ:
+    dbgout("redir_url=%s", redir_url);
+    dbgout("ipv4_addr=%s", ctx->ipv4_addr);
     return 0;
     _fail:
     dbgout(FAILED_STR);
@@ -209,16 +218,15 @@ int get_basic_info(AUTH_CONTEXT *ctx, const char *url, char *redir_url) {
 int get_config(AUTH_CONTEXT *ctx,
                const char *url) {
     if (ctx->ticket_url[0] && ctx->auth_url[0]) goto _succ;
-    char buf[4096] = {0};
+    char buf[UD_BUF_SIZE] = {0};
     char headers[][HEADER_LEN] = {{0},
                                   {0}};
     snprintf(headers[0], HEADER_LEN, "User-Agent: %s", ctx->user_agent);
-    if (http_req_send(url, headers, NULL, buf)) goto _fail;
+    if (http_req_send(url, headers, NULL, buf, sizeof(buf), 0)) goto _fail;
     if (!ctx->ticket_url[0])
         if (str_extract(ctx->ticket_url, buf, "<ticket-url><![CDATA[", "]]></ticket-url>")) goto _fail;
     if (!ctx->auth_url[0])
         if (str_extract(ctx->auth_url, buf, "<auth-url><![CDATA[", "]]></auth-url>")) goto _fail;
-
     _succ:
     return 0;
     _fail:
@@ -228,15 +236,25 @@ int get_config(AUTH_CONTEXT *ctx,
 
 int get_ticket(AUTH_CONTEXT *ctx) {
     update_local_time(ctx);
-    char data[4096] = {0};
+    char data[UD_BUF_SIZE] = {0};
+    char buf[UD_BUF_SIZE] = {0};
     char md5_hex[64] = {0};
     build_ticket_payload(ctx, data, md5_hex);
     char headers[8][HEADER_LEN];
     build_headers(ctx, headers, md5_hex);
-    if (http_req_send(ctx->ticket_url, headers, data, data)) goto _fail;
-    u_char data_plain[sizeof(data) >> 1] = {0};
-    payload_decode((u_char *) data_plain, (const u_char *) data, strlen(data));
-    if (str_extract(ctx->ticket, (char *) data_plain, "<ticket>", "</ticket>")) goto _fail;
+    dbgout("ticket_url=%s", ctx->ticket_url);
+    if (http_req_send(ctx->ticket_url, headers, data, buf, sizeof(buf), 0)) goto _fail;
+    char data_plain[sizeof(data) / 2] = {0};
+    payload_decode((u_char *) data_plain, (const u_char *) buf, strlen(buf));
+    if (!strlen(data_plain)) {
+        dbgout("Empty response");
+        goto _fail;
+    }
+    if (str_extract(ctx->ticket, (char *) data_plain, "<ticket>", "</ticket>")) {
+        dbgout("<ticket> not found");
+        goto _fail;
+    }
+    dbgout("ticket=%s", ctx->ticket);
     return 0;
     _fail:
     dbgout(FAILED_STR);
@@ -245,21 +263,30 @@ int get_ticket(AUTH_CONTEXT *ctx) {
 
 int send_auth(AUTH_CONTEXT *ctx, const char *userid, const char *passwd) {
     update_local_time(ctx);
-    char data[4096] = {0};
+    char data[UD_BUF_SIZE] = {0};
+    char buf[UD_BUF_SIZE] = {0};
     char md5_hex[64] = {0};
     build_auth_payload(ctx, data, md5_hex, userid, passwd);
     char headers[8][HEADER_LEN];
     build_headers(ctx, headers, md5_hex);
-    if (http_req_send(ctx->auth_url, headers, data, data)) goto _fail;
+    dbgout("userid=%s, passwd=%s", userid, passwd);
+    dbgout("auth_url=%s", ctx->auth_url);
+    if (http_req_send(ctx->auth_url, headers, data, buf, sizeof(buf), 0)) goto _fail;
     if (ctx->keep_url[0] && ctx->term_url[0]) goto _succ;
-    u_char data_plain[sizeof(data) >> 1] = {0};
-    payload_decode((u_char *) data_plain, (const u_char *) data, strlen(data));
+    char data_plain[sizeof(data) / 2] = {0};
+    payload_decode((u_char *) data_plain, (const u_char *) buf, strlen(buf));
+    if (!strlen(data_plain)) {
+        dbgout("Empty response");
+        goto _fail;
+    }
     if (!ctx->keep_url[0])
         if (str_extract(ctx->keep_url, (char *) data_plain, "<keep-url><![CDATA[", "]]></keep-url>")) goto _fail;
     if (!ctx->term_url[0])
         if (str_extract(ctx->term_url, (char *) data_plain, "<term-url><![CDATA[", "]]></term-url>")) goto _fail;
 
     _succ:
+    dbgout("keep_url=%s", ctx->keep_url);
+    dbgout("term_url=%s", ctx->term_url);
     return 0;
     _fail:
     dbgout(FAILED_STR);
@@ -267,24 +294,28 @@ int send_auth(AUTH_CONTEXT *ctx, const char *userid, const char *passwd) {
 }
 
 int send_keep(AUTH_CONTEXT *ctx, long *interval) {
-
     update_local_time(ctx);
-    char data[4096] = {0};
+    char data[UD_BUF_SIZE] = {0};
+    char buf[UD_BUF_SIZE] = {0};
     char md5_hex[64] = {0};
-
     build_keep_payload(ctx, data, md5_hex);
     char headers[8][HEADER_LEN];
     build_headers(ctx, headers, md5_hex);
-
-    if (http_req_send(ctx->keep_url, headers, data, data)) goto _fail;
-
-    u_char data_plain[sizeof(data) / 2] = {0};
-    payload_decode((u_char *) data_plain, (const u_char *) data, strlen(data));
-
+    dbgout("keep_url=%s", ctx->keep_url);
+    if (http_req_send(ctx->keep_url, headers, data, buf, sizeof(buf), 0)) goto _fail;
+    char data_plain[sizeof(data) / 2] = {0};
+    payload_decode((u_char *) data_plain, (const u_char *) buf, strlen(buf));
+    if (!strlen(data_plain)) {
+        dbgout("Empty response");
+        goto _fail;
+    }
     char interval_val[16] = {0};
-    if (str_extract(interval_val, (char *) data_plain, "<interval>", "</interval>")) goto _fail;
+    if (str_extract(interval_val, (char *) data_plain, "<interval>", "</interval>")) {
+        dbgout("<interval> not found");
+        goto _fail;
+    }
     *interval = atol(interval_val);
-
+    dbgout("interval=%ld", *interval);
     return 0;
     _fail:
     dbgout(FAILED_STR);
@@ -293,12 +324,13 @@ int send_keep(AUTH_CONTEXT *ctx, long *interval) {
 
 int send_term(AUTH_CONTEXT *ctx, int reason) {
     update_local_time(ctx);
-    char data[4096] = {0};
+    char data[UD_BUF_SIZE] = {0};
     char md5_hex[64] = {0};
     build_term_payload(ctx, data, md5_hex, reason);
     char headers[8][HEADER_LEN];
     build_headers(ctx, headers, md5_hex);
-    if (http_req_send(ctx->term_url, headers, data, data)) goto _fail;
+    dbgout("term_url=%s", ctx->term_url);
+    if (http_req_send(ctx->term_url, headers, data, NULL, 0, 0)) goto _fail;
     return 0;
     _fail:
     dbgout(FAILED_STR);
@@ -312,8 +344,7 @@ int auth_init(AUTH_CONTEXT *ctx,
               const char *ostag,
               const char *host_name,
               const char *user_agent,
-              const char *algo_id,
-              const char *client_id
+              const char *algo_id
 ) {
     char redir_url[256] = {0};
     char *site_list[] = {
@@ -327,15 +358,12 @@ int auth_init(AUTH_CONTEXT *ctx,
         if (!get_basic_info(ctx, site_list[i], redir_url)) break;
     }
     if (site_list[i][0] == 0) goto _fail;
-    if (!(ostag && host_name && user_agent && algo_id && client_id)) return 0;
-
+    if (!(ostag && host_name && user_agent && algo_id)) return 0;
     update_local_time(ctx);
-
     u_char md5_bin[HASHSIZE];
-    md5(ctx->local_time, strlen(ctx->local_time), (char *) md5_bin);
-    strcpy(ctx->client_id, client_id);
+    md5(redir_url, strlen(redir_url), (char *) md5_bin);
 
-    //随机MAC
+    //生成MAC
     snprintf(ctx->mac_addr, 32, "%02X:%02X:%02X:%02X:%02X:%02X",
              (*((uint8_t *) md5_bin)) & 0xFE,
              (*((uint8_t *) (md5_bin + 1))),
@@ -343,6 +371,17 @@ int auth_init(AUTH_CONTEXT *ctx,
              (*((uint8_t *) (md5_bin + 3))),
              (*((uint8_t *) (md5_bin + 4))),
              (*((uint8_t *) (md5_bin + 5))));
+    dbgout("Fake MAC=%s", ctx->mac_addr);
+
+    //生成ClientID
+    snprintf(ctx->client_id, 64, "%08X-%04X-%04X-%04X-%04X%08X",
+             (*((uint32_t *) md5_bin)),
+             (*((uint16_t *) (md5_bin + 1))),
+             (*((uint16_t *) (md5_bin + 2))),
+             (*((uint16_t *) (md5_bin + 3))),
+             (*((uint16_t *) (md5_bin + 4))),
+             (*((uint32_t *) (md5_bin + 5))));
+    dbgout("Fake ClientID=%s", ctx->client_id);
 
     if (cdc_domain) strcpy(ctx->cdc_domain, cdc_domain);
     if (cdc_area) strcpy(ctx->cdc_area, cdc_area);
@@ -351,11 +390,8 @@ int auth_init(AUTH_CONTEXT *ctx,
     strcpy(ctx->host_name, host_name);
     strcpy(ctx->user_agent, user_agent);
     strcpy(ctx->algo_id, algo_id);
-
     if (get_config(ctx, redir_url)) goto _fail;
-
     return 0;
-
     _fail:
     dbgout(FAILED_STR);
     return -1;
@@ -368,11 +404,26 @@ void auth_manual_set_config(AUTH_CONTEXT *ctx,
                             const char *term_url,
                             const char *ipv4_addr
 ) {
-    if (ticket_url) strcpy(ctx->ticket_url, ticket_url);
-    if (auth_url) strcpy(ctx->auth_url, auth_url);
-    if (keep_url) strcpy(ctx->keep_url, keep_url);
-    if (term_url) strcpy(ctx->term_url, term_url);
-    if (ipv4_addr) strcpy(ctx->ipv4_addr, ipv4_addr);
+    if (ticket_url) {
+        dbgout("ticket_url=%s", ticket_url);
+        strcpy(ctx->ticket_url, ticket_url);
+    }
+    if (auth_url) {
+        dbgout("auth_url=%s", auth_url);
+        strcpy(ctx->auth_url, auth_url);
+    }
+    if (keep_url) {
+        dbgout("keep_url=%s", keep_url);
+        strcpy(ctx->keep_url, keep_url);
+    }
+    if (term_url) {
+        dbgout("term_url=%s", term_url);
+        strcpy(ctx->term_url, term_url);
+    }
+    if (ipv4_addr) {
+        dbgout("ipv4_addr=%s", ipv4_addr);
+        strcpy(ctx->ipv4_addr, ipv4_addr);
+    }
 }
 
 int auth_login(AUTH_CONTEXT *ctx, const char *userid, const char *passwd) {

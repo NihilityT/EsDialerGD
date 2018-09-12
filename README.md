@@ -3,11 +3,11 @@
 
 ## 简介
 
-Written in C with libcurl
-
 鉴权协议分析：https://4fk.me/post/gdes-auth-proto.html
 
 ## 功能更新
+
+- 2018-09-14：增加自动生成ClientID与MAC地址功能；增加对支持302跳转的支持；删除ESD_DEBUG选项，直接显示所有调试信息；删除连通性检查功能。
 
 - 2018-05-30：增加自定义接口地址功能。
 
@@ -35,10 +35,6 @@ Written in C with libcurl
 
 - ``ESD_RETRY_DELAY`` 重试间隔（秒）；默认值：30
 
-- ``ESD_CHECK_INTERVAL`` 连接状态检查间隔（秒）；默认值：30
-
-- ``ESD_DEBUG`` 输出调试信息；默认值：（空）
-
 - ``ESD_TICKET_URL`` **Ticket接口URL**
 
 - ``ESD_AUTH_URL`` **Auth接口URL**
@@ -48,7 +44,6 @@ Written in C with libcurl
 - ``ESD_TERM_URL `` **Term接口URL**
 
 - ``ESD_IPV4_ADDR`` **客户端IP地址**
-
 
 备注：
 
@@ -69,14 +64,12 @@ export ESD_PASSWD=bar
 
 # export ESD_RETRY_COUNT=-1
 # export ESD_RETRY_DELAY=20
-# export ESD_CHECK_INTERVAL=10
-# export ESD_DEBUG=1
 
 # export ESD_TICKET_URL=http://XXX/ticket.cgi
 # export ESD_AUTH_URL=http://XXX/auth.cgi
 # export ESD_KEEP_URL=http://XXX/keep.cgi
 # export ESD_TERM_URL=http://XXX/term.cgi
-# export ESD_IPV4_ADDR=AAA.BBB.CCC.DDD
+# export ESD_IPV4_ADDR=XXX.XXX.XXX.XXX
 
 # 运行
 ./EsDialer
@@ -92,17 +85,16 @@ set ESD_PASSWD=bar
 
 REM set ESD_RETRY_COUNT=-1
 REM set ESD_RETRY_DELAY=20
-REM set ESD_CHECK_INTERVAL=10
-REM set ESD_DEBUG=1
 
 REM set ESD_TICKET_URL=http://XXX/ticket.cgi
 REM set ESD_AUTH_URL=http://XXX/auth.cgi
 REM set ESD_KEEP_URL=http://XXX/keep.cgi
 REM set ESD_TERM_URL=http://XXX/term.cgi
-REM set ESD_IPV4_ADDR=AAA.BBB.CCC.DDD
+REM set ESD_IPV4_ADDR=XXX.XXX.XXX.XXX
 
 REM 运行
 .\EsDialer
+
 ```
 
 ## 源码
@@ -120,6 +112,7 @@ REM 运行
 ``http_req.c`` HTTP请求
 
 ## 编译方法
+
 程序依赖libcurl，请先装好。
 
 ```

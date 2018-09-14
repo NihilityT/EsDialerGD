@@ -39,7 +39,6 @@ int auth_init(AUTH_CONTEXT *ctx,
               const char *host_name,
               const char *user_agent,
               const char *algo_id,
-              const char *client_id
 );
 
 void auth_manual_set_config(AUTH_CONTEXT *ctx,

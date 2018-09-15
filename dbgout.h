@@ -3,10 +3,9 @@
 //
 
 #pragma once
-extern int dbgout_enable;
 
 #define FAILED_STR  "FAILED"
 #define dbgout(fmt, arg...) \
 do {\
-    if(dbgout_enable) printf("(%s) "fmt"\n",__FUNCTION__, ##arg); \
+    printf("[%s] "fmt"\n",__FUNCTION__, ##arg); \
 }while(0);

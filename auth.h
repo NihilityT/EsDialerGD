@@ -41,6 +41,14 @@ int auth_init(AUTH_CONTEXT *ctx,
               const char *algo_id
 );
 
+void auth_manual_set_config(AUTH_CONTEXT *ctx,
+                            const char *ticket_url,
+                            const char *auth_url,
+                            const char *keep_url,
+                            const char *term_url,
+                            const char *ipv4_addr
+);
+
 int auth_login(AUTH_CONTEXT *ctx, const char *userid, const char *passwd);
 
 long auth_keep(AUTH_CONTEXT *ctx);
